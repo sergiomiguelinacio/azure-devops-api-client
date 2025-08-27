@@ -1,0 +1,214 @@
+name: 🤖 Auto-Update from Generator
+
+on:
+  # Triggered when the private repo pushes new generated code
+  repository_dispatch:
+    types: [code-generated]
+  
+  # Manual trigger for testing
+  workflow_dispatch:
+    inputs:
+      skip_tests:
+        description: 'Skip tests during build'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  DOTNET_VERSION: '9.0.x'
+
+jobs:
+  process-update:
+    name: 🔄 Process Generated Code Update
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+    
+    - name: 🔧 Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+    
+    - name: 📊 Analyze Changes
+      id: analyze
+      run: |
+        echo "🔍 Analyzing recent changes..."
+        
+        # Get the latest commit message
+        LATEST_COMMIT=$(git log -1 --pretty=format:"%s")
+        echo "latest_commit=$LATEST_COMMIT" >> $GITHUB_OUTPUT
+        
+        # Check if this is an auto-generated update
+        if [[ "$LATEST_COMMIT" == *"update Azure DevOps API definitions"* ]]; then
+          echo "is_auto_generated=true" >> $GITHUB_OUTPUT
+          echo "✅ Detected auto-generated update"
+        else
+          echo "is_auto_generated=false" >> $GITHUB_OUTPUT
+          echo "ℹ️ Manual update detected"
+        fi
+        
+        # Count changed files
+        CHANGED_FILES=$(git diff HEAD~1 --name-only | wc -l)
+        echo "changed_files=$CHANGED_FILES" >> $GITHUB_OUTPUT
+        echo "📊 Changed files: $CHANGED_FILES"
+    
+    - name: 🔍 Validate Generated Code
+      if: steps.analyze.outputs.is_auto_generated == 'true'
+      run: |
+        echo "🔍 Validating generated code structure..."
+        
+        # Check for required directories
+        if [ ! -d "src" ]; then
+          echo "❌ src directory not found"
+          exit 1
+        fi
+        
+        # Find main project file
+        MAIN_PROJECT=$(find src -name "*.csproj" -not -path "*/bin/*" -not -path "*/obj/*" | head -1)
+        if [ -z "$MAIN_PROJECT" ]; then
+          echo "❌ No project file found"
+          exit 1
+        fi
+        
+        echo "✅ Found main project: $MAIN_PROJECT"
+        echo "main_project=$MAIN_PROJECT" >> $GITHUB_ENV
+        
+        # Check for basic structure
+        CS_FILES=$(find src -name "*.cs" | wc -l)
+        echo "📄 C# files: $CS_FILES"
+        
+        if [ "$CS_FILES" -lt 10 ]; then
+          echo "⚠️ Suspiciously few C# files generated"
+        fi
+    
+    - name: 📦 Restore and Build
+      run: |
+        echo "📦 Restoring packages and building..."
+        
+        if [ -n "$main_project" ]; then
+          dotnet restore "$main_project"
+          dotnet build "$main_project" --configuration Release --no-restore
+        else
+          # Fallback: try to find and build any project
+          PROJECT=$(find src -name "*.csproj" | head -1)
+          if [ -n "$PROJECT" ]; then
+            dotnet restore "$PROJECT"
+            dotnet build "$PROJECT" --configuration Release --no-restore
+          fi
+        fi
+    
+    - name: 🧪 Run Tests
+      if: github.event.inputs.skip_tests != 'true'
+      run: |
+        echo "🧪 Running tests..."
+        
+        # Find test projects
+        TEST_PROJECTS=$(find . -name "*Test*.csproj" -o -name "*Tests*.csproj" | grep -v bin | grep -v obj)
+        
+        if [ -z "$TEST_PROJECTS" ]; then
+          echo "ℹ️ No test projects found, skipping tests"
+        else
+          echo "🧪 Found test projects:"
+          echo "$TEST_PROJECTS"
+          
+          for TEST_PROJECT in $TEST_PROJECTS; do
+            echo "🧪 Running tests for: $TEST_PROJECT"
+            dotnet test "$TEST_PROJECT" --configuration Release --verbosity minimal
+          done
+        fi
+    
+    - name: 📋 Create Update Summary
+      if: steps.analyze.outputs.is_auto_generated == 'true'
+      run: |
+        echo "## 🤖 Auto-Generated Code Update" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📊 Update Statistics" >> $GITHUB_STEP_SUMMARY
+        echo "- **Changed Files**: ${{ steps.analyze.outputs.changed_files }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Commit Message**: ${{ steps.analyze.outputs.latest_commit }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Timestamp**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -d "src" ]; then
+          CS_FILES=$(find src -name "*.cs" | wc -l)
+          PROJECT_FILES=$(find src -name "*.csproj" | wc -l)
+          echo "- **C# Files**: $CS_FILES" >> $GITHUB_STEP_SUMMARY
+          echo "- **Project Files**: $PROJECT_FILES" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🔗 Links" >> $GITHUB_STEP_SUMMARY
+        echo "- 🏠 [Repository](https://github.com/${{ github.repository }})" >> $GITHUB_STEP_SUMMARY
+        echo "- 📦 [NuGet Package](https://www.nuget.org/packages/AzureDevOpsApi)" >> $GITHUB_STEP_SUMMARY
+        echo "- 🔄 [CI/CD Pipeline](https://github.com/${{ github.repository }}/actions)" >> $GITHUB_STEP_SUMMARY
+    
+    - name: 🏷️ Create Release Tag
+      if: steps.analyze.outputs.is_auto_generated == 'true' && github.ref == 'refs/heads/main'
+      run: |
+        echo "🏷️ Creating release tag..."
+        
+        # Extract version from commit message or use timestamp
+        if [[ "${{ steps.analyze.outputs.latest_commit }}" =~ v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+          VERSION=$(echo "${{ steps.analyze.outputs.latest_commit }}" | grep -o 'v[0-9]\+\.[0-9]\+\.[0-9]\+')
+        else
+          # Generate version based on date
+          VERSION="v1.0.$(date +%Y%m%d%H%M)"
+        fi
+        
+        echo "📋 Version: $VERSION"
+        
+        # Configure git
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        
+        # Create and push tag
+        git tag -a "$VERSION" -m "Auto-generated release $VERSION"
+        git push origin "$VERSION"
+        
+        echo "✅ Created and pushed tag: $VERSION"
+    
+    - name: 📤 Trigger Main CI/CD
+      if: steps.analyze.outputs.is_auto_generated == 'true'
+      run: |
+        echo "📤 Triggering main CI/CD pipeline..."
+        
+        # The main ci-cd.yml workflow will be triggered by the tag push
+        # or we can trigger it manually via API
+        
+        curl -X POST \
+          -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          -H "Accept: application/vnd.github.v3+json" \
+          "https://api.github.com/repos/${{ github.repository }}/actions/workflows/ci-cd.yml/dispatches" \
+          -d '{"ref":"main"}'
+        
+        echo "✅ Main CI/CD pipeline triggered"
+
+  notify-completion:
+    name: 📢 Notify Completion
+    runs-on: ubuntu-latest
+    needs: process-update
+    if: always()
+    
+    steps:
+    - name: 📢 Create Notification
+      run: |
+        if [ "${{ needs.process-update.result }}" = "success" ]; then
+          echo "✅ Auto-update process completed successfully"
+          
+          # Here you could add notifications to Slack, Teams, etc.
+          # Example:
+          # curl -X POST -H 'Content-type: application/json' \
+          #   --data '{"text":"✅ Azure DevOps API Client updated successfully"}' \
+          #   ${{ secrets.SLACK_WEBHOOK_URL }}
+          
+        else
+          echo "❌ Auto-update process failed"
+          
+          # Notification for failure
+          # curl -X POST -H 'Content-type: application/json' \
+          #   --data '{"text":"❌ Azure DevOps API Client update failed"}' \
+          #   ${{ secrets.SLACK_WEBHOOK_URL }}
+        fi

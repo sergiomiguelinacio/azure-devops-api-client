@@ -1,0 +1,14 @@
+Examples/BasicUsage/bin
+Examples/BasicUsage/obj
+src/ApiBase/bin
+src/ApiBase/obj
+src/AzureDevopsApi/bin
+src/AzureDevopsApi/obj
+src/AzureDevopsApi.UnitTests/bin
+src/AzureDevopsApi.UnitTests/obj
+src/AzureDevopsApiFunctionalTests/bin
+src/AzureDevopsApiFunctionalTests/obj
+src/AzureDevopsApiIntegrationTests/bin
+src/AzureDevopsApiIntegrationTests/obj
+src/bin
+src/obj
