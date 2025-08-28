@@ -3,6 +3,8 @@ using AzureDevOpsApi.Api.Interface.core;
 using ApiBase;
 using ApiBase.Utils.Interfaces;
 using ApiBase.Utils.Implementations;
+using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 
 namespace AzureDevOpsApi.Api.Implementation.core
 {
@@ -11,14 +13,18 @@ namespace AzureDevOpsApi.Api.Implementation.core
     /// </summary>
     public class Operations : BaseApi, IOperations
     {
-        public Operations(IHttpClientUtil httpClient, string baseUrl)
+        private readonly ILogger<Operations> _logger;
+
+        public Operations(IHttpClientUtil httpClient, string baseUrl, ILogger<Operations>? logger = null)
             : base(httpClient, baseUrl)
         {
+            _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<Operations>.Instance;
         }
 
-        public Operations(HttpClient httpClient, string baseUrl, RetryOptions? retryOptions = null)
+        public Operations(HttpClient httpClient, string baseUrl, RetryOptions? retryOptions = null, ILogger<Operations>? logger = null)
             : base(httpClient, baseUrl, new DefaultPollyPolicyProvider(retryOptions))
         {
+            _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<Operations>.Instance;
         }
 
         /// <summary>
@@ -30,13 +36,36 @@ namespace AzureDevOpsApi.Api.Implementation.core
             object? requestBody = null,
             CancellationToken cancellationToken = default)
         {
-            var pathParams = ExtractPathParameters(pathParameters);
-            var queryParams = ExtractQueryParameters(queryParameters);
-            var headers = CreateHeaders();
+            var stopwatch = Stopwatch.StartNew();
 
-            var url = BuildUrl("/{organization}/_apis/projects/{projectId}/teams", pathParams, queryParams);
+            try
+            {
+                _logger.LogInformation("Starting POST operation: Create for path: /{organization}/_apis/projects/{projectId}/teams");
 
-            return await _httpClient.PostAsync<T>(url, requestBody, headers, cancellationToken);
+                var pathParams = ExtractPathParameters(pathParameters);
+                var queryParams = ExtractQueryParameters(queryParameters);
+                var headers = CreateHeaders();
+
+                var url = BuildUrl("/{organization}/_apis/projects/{projectId}/teams", pathParams, queryParams);
+
+                _logger.LogDebug("Built URL: {Url} for operation: Create", url);
+
+                T? result;
+                result = await _httpClient.PostAsync<T>(url, requestBody, headers, cancellationToken);
+
+                stopwatch.Stop();
+                _logger.LogInformation("Completed POST operation: Create in {Duration}ms",
+                    stopwatch.ElapsedMilliseconds);
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                stopwatch.Stop();
+                _logger.LogError(ex, "Failed POST operation: Create after {Duration}ms",
+                    stopwatch.ElapsedMilliseconds);
+                throw;
+            }
         }
 
         /// <summary>
@@ -47,13 +76,36 @@ namespace AzureDevOpsApi.Api.Implementation.core
             object? queryParameters = null,
             CancellationToken cancellationToken = default)
         {
-            var pathParams = ExtractPathParameters(pathParameters);
-            var queryParams = ExtractQueryParameters(queryParameters);
-            var headers = CreateHeaders();
+            var stopwatch = Stopwatch.StartNew();
 
-            var url = BuildUrl("/{organization}/_apis/projects/{projectId}/teams/{teamId}", pathParams, queryParams);
+            try
+            {
+                _logger.LogInformation("Starting GET operation: Get for path: /{organization}/_apis/projects/{projectId}/teams/{teamId}");
 
-            return await _httpClient.GetAsync<T>(url, headers, cancellationToken);
+                var pathParams = ExtractPathParameters(pathParameters);
+                var queryParams = ExtractQueryParameters(queryParameters);
+                var headers = CreateHeaders();
+
+                var url = BuildUrl("/{organization}/_apis/projects/{projectId}/teams/{teamId}", pathParams, queryParams);
+
+                _logger.LogDebug("Built URL: {Url} for operation: Get", url);
+
+                T? result;
+                result = await _httpClient.GetAsync<T>(url, headers, cancellationToken);
+
+                stopwatch.Stop();
+                _logger.LogInformation("Completed GET operation: Get in {Duration}ms",
+                    stopwatch.ElapsedMilliseconds);
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                stopwatch.Stop();
+                _logger.LogError(ex, "Failed GET operation: Get after {Duration}ms",
+                    stopwatch.ElapsedMilliseconds);
+                throw;
+            }
         }
 
         /// <summary>
@@ -64,13 +116,36 @@ namespace AzureDevOpsApi.Api.Implementation.core
             object? queryParameters = null,
             CancellationToken cancellationToken = default)
         {
-            var pathParams = ExtractPathParameters(pathParameters);
-            var queryParams = ExtractQueryParameters(queryParameters);
-            var headers = CreateHeaders();
+            var stopwatch = Stopwatch.StartNew();
 
-            var url = BuildUrl("/{organization}/_apis/projects/{projectId}/teams/{teamId}", pathParams, queryParams);
+            try
+            {
+                _logger.LogInformation("Starting DELETE operation: Delete for path: /{organization}/_apis/projects/{projectId}/teams/{teamId}");
 
-            return await _httpClient.DeleteAsync<T>(url, headers, cancellationToken);
+                var pathParams = ExtractPathParameters(pathParameters);
+                var queryParams = ExtractQueryParameters(queryParameters);
+                var headers = CreateHeaders();
+
+                var url = BuildUrl("/{organization}/_apis/projects/{projectId}/teams/{teamId}", pathParams, queryParams);
+
+                _logger.LogDebug("Built URL: {Url} for operation: Delete", url);
+
+                T? result;
+                result = await _httpClient.DeleteAsync<T>(url, headers, cancellationToken);
+
+                stopwatch.Stop();
+                _logger.LogInformation("Completed DELETE operation: Delete in {Duration}ms",
+                    stopwatch.ElapsedMilliseconds);
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                stopwatch.Stop();
+                _logger.LogError(ex, "Failed DELETE operation: Delete after {Duration}ms",
+                    stopwatch.ElapsedMilliseconds);
+                throw;
+            }
         }
 
         /// <summary>
@@ -82,13 +157,36 @@ namespace AzureDevOpsApi.Api.Implementation.core
             object? requestBody = null,
             CancellationToken cancellationToken = default)
         {
-            var pathParams = ExtractPathParameters(pathParameters);
-            var queryParams = ExtractQueryParameters(queryParameters);
-            var headers = CreateHeaders();
+            var stopwatch = Stopwatch.StartNew();
 
-            var url = BuildUrl("/{organization}/_apis/projects/{projectId}/teams/{teamId}", pathParams, queryParams);
+            try
+            {
+                _logger.LogInformation("Starting PATCH operation: Update for path: /{organization}/_apis/projects/{projectId}/teams/{teamId}");
 
-            return await _httpClient.PatchAsync<T>(url, requestBody, headers, cancellationToken);
+                var pathParams = ExtractPathParameters(pathParameters);
+                var queryParams = ExtractQueryParameters(queryParameters);
+                var headers = CreateHeaders();
+
+                var url = BuildUrl("/{organization}/_apis/projects/{projectId}/teams/{teamId}", pathParams, queryParams);
+
+                _logger.LogDebug("Built URL: {Url} for operation: Update", url);
+
+                T? result;
+                result = await _httpClient.PatchAsync<T>(url, requestBody, headers, cancellationToken);
+
+                stopwatch.Stop();
+                _logger.LogInformation("Completed PATCH operation: Update in {Duration}ms",
+                    stopwatch.ElapsedMilliseconds);
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                stopwatch.Stop();
+                _logger.LogError(ex, "Failed PATCH operation: Update after {Duration}ms",
+                    stopwatch.ElapsedMilliseconds);
+                throw;
+            }
         }
 
     }

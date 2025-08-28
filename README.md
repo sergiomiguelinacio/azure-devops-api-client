@@ -1,12 +1,12 @@
-# 📦 Azure DevOps API Client
+# 📦 AzureDevOpsClient
 
-[![NuGet Version](https://img.shields.io/nuget/v/AzureDevOpsApi.svg)](https://www.nuget.org/packages/AzureDevOpsApi/)
+[![NuGet Version](https://img.shields.io/nuget/v/AzureDevOpsClient.svg)](https://www.nuget.org/packages/AzureDevOpsClient/)
 [![Build Status](https://github.com/your-org/azure-devops-api-client/workflows/🚀%20CI/CD%20Pipeline/badge.svg)](https://github.com/your-org/azure-devops-api-client/actions)
 [![Code Coverage](https://codecov.io/gh/your-org/azure-devops-api-client/branch/main/graph/badge.svg)](https://codecov.io/gh/your-org/azure-devops-api-client)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![.NET](https://img.shields.io/badge/.NET-9.0-purple.svg)](https://dotnet.microsoft.com/download/dotnet/9.0)
 
-A comprehensive, **production-ready** .NET library for interacting with Azure DevOps REST APIs. Built with **Polly** for resilience, **HttpClientFactory** for performance, and full **Dependency Injection** support.
+A comprehensive, **production-ready** .NET library for interacting with Azure DevOps REST APIs. Built with **Polly** for resilience, **HttpClientFactory** for performance, **structured logging with ILogger**, **performance metrics**, and full **Dependency Injection** support.
 
 > 🤖 **Auto-Generated**: This library is automatically generated from the latest Azure DevOps documentation using intelligent web scraping and AI. Always up-to-date with the official API.
 
@@ -18,6 +18,10 @@ A comprehensive, **production-ready** .NET library for interacting with Azure De
 - **🎯 Strongly Typed**: Generated DTOs with validation attributes
 - **🔐 Authentication Ready**: Built-in support for Personal Access Tokens (PAT)
 - **📊 Async/Await**: Modern async patterns with cancellation token support
+- **📋 Structured Logging**: Built-in ILogger support with operation timing and debug information
+- **📈 Performance Metrics**: Automatic collection of operation duration and success rates
+- **🆔 Correlation IDs**: Request tracing for debugging and monitoring
+- **🔍 Observability**: Ready for integration with Application Insights, Elasticsearch, and other monitoring tools
 - **🧪 Test Ready**: Includes comprehensive unit tests and examples
 - **📚 Well Documented**: Complete examples and usage patterns
 - **🤖 Always Updated**: Automatically generated from latest Azure DevOps documentation
@@ -148,6 +152,129 @@ var retryOptions = new RetryOptions
 };
 ```
 
+## 📊 Logging and Observability
+
+AzureDevOpsClient includes comprehensive structured logging and performance metrics out of the box.
+
+### 🔧 Basic Logging Setup
+
+```csharp
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
+
+// Configure logging in your DI container
+var services = new ServiceCollection();
+services.AddLogging(builder =>
+{
+    builder.AddConsole();
+    builder.AddDebug();
+    builder.SetMinimumLevel(LogLevel.Information);
+});
+
+// Register AzureDevOpsClient with logging
+services.AddAzureDevOpsApiClient("https://dev.azure.com/yourorg");
+
+var serviceProvider = services.BuildServiceProvider();
+var apiClient = serviceProvider.GetRequiredService<AzureDevOpsApiClient>();
+
+// All operations now include automatic logging
+var teams = await apiClient.Core.GetTeamsAsync<TeamList>();
+```
+
+### 📋 What Gets Logged
+
+Every API operation automatically logs:
+
+- **🚀 Operation Start**: Method name and endpoint path
+- **🔗 URL Construction**: Complete URL with parameters (debug level)
+- **⏱️ Operation Timing**: Duration in milliseconds
+- **✅ Success/Failure**: Operation outcome with error details
+- **🆔 Correlation IDs**: For request tracing (when available)
+
+**Example log output:**
+```
+[10:30:15 INF] Starting GET operation: GetTeams for path: /{organization}/_apis/projects/{projectId}/teams
+[10:30:15 DBG] Built URL: https://dev.azure.com/myorg/_apis/projects/myproject/teams for operation: GetTeams
+[10:30:16 INF] Completed GET operation: GetTeams in 1250ms
+```
+
+### 🔍 Custom Logger Integration
+
+```csharp
+// Use your existing logger
+var loggerFactory = LoggerFactory.Create(builder =>
+{
+    builder.AddSerilog(); // Serilog
+    builder.AddApplicationInsights(); // Application Insights
+    builder.AddElasticsearch(); // Elasticsearch
+    // Any ILogger provider
+});
+
+var logger = loggerFactory.CreateLogger<Teams>();
+
+// Inject into specific API classes
+var teamsApi = new Teams(httpClient, baseUrl, logger: logger);
+```
+
+### 📈 Performance Metrics
+
+The client automatically tracks:
+
+- **Operation Duration**: Time taken for each API call
+- **Success Rate**: Percentage of successful operations
+- **Error Patterns**: Common failure scenarios
+- **Endpoint Performance**: Which endpoints are slowest
+
+### 🔗 Integration with Monitoring Tools
+
+**Application Insights:**
+```csharp
+services.AddLogging(builder =>
+{
+    builder.AddApplicationInsights("your-instrumentation-key");
+});
+```
+
+**Serilog with Elasticsearch:**
+```csharp
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Elasticsearch("http://localhost:9200")
+    .CreateLogger();
+
+services.AddLogging(builder => builder.AddSerilog());
+```
+
+**Structured Logging Example:**
+```json
+{
+  "@timestamp": "2024-01-15T10:30:15.123Z",
+  "level": "Information",
+  "message": "Completed GET operation: GetTeams in 1250ms",
+  "operation": "GetTeams",
+  "duration": 1250,
+  "success": true,
+  "url": "https://dev.azure.com/myorg/_apis/projects/myproject/teams"
+}
+```
+
+### 🚨 Error Handling and Logging
+
+```csharp
+try
+{
+    var teams = await apiClient.Core.GetTeamsAsync<TeamList>();
+}
+catch (HttpRequestException ex)
+{
+    // Automatically logged with full context:
+    // - Operation name
+    // - Duration before failure
+    // - HTTP status code
+    // - Request URL
+    // - Stack trace
+}
+```
+
 ## 🔨 Building and Testing
 
 ### Build the Library
@@ -155,7 +282,7 @@ var retryOptions = new RetryOptions
 # Build the main library
 dotnet build src/AzureDevopsApi/AzureDevopsApi.csproj --configuration Release
 
-# Create NuGet package
+# Create NuGet package (now generates AzureDevOpsClient v2.0.0)
 dotnet pack src/AzureDevopsApi/AzureDevopsApi.csproj --configuration Release --output ./packages
 ```
 

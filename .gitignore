@@ -12,3 +12,7 @@ src/AzureDevopsApiIntegrationTests/bin
 src/AzureDevopsApiIntegrationTests/obj
 src/bin
 src/obj
+AzureDevOpsClient.Examples/bin
+AzureDevOpsClient.Examples/obj
+AzureDevOpsClient.Tests/bin
+AzureDevOpsClient.Tests/obj

@@ -5,6 +5,7 @@ using ApiBase;
 using ApiBase.Utils.Interfaces;
 using ApiBase.Utils.Implementations;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Polly;
 
 namespace AzureDevOpsApi.Api
@@ -18,6 +19,7 @@ namespace AzureDevOpsApi.Api
         private readonly HttpClient? _ownedHttpClient;
         private readonly IHttpClientUtil _httpClientUtil;
         private readonly string _baseUrl;
+        private readonly ILogger<coreApiClient> _logger;
         private bool _disposed = false;
 
         /// <summary>
@@ -39,18 +41,22 @@ namespace AzureDevOpsApi.Api
         /// <param name="httpClient">Custom HttpClient instance (caller is responsible for disposal)</param>
         /// <param name="baseUrl">Base URL for the Azure DevOps API (e.g., "https://dev.azure.com")</param>
         /// <param name="policyProvider">Optional Polly policy provider for resilience patterns</param>
-        public coreApiClient(HttpClient httpClient, string baseUrl, IPollyPolicyProvider? policyProvider = null)
+        /// <param name="logger">Optional logger instance</param>
+        public coreApiClient(HttpClient httpClient, string baseUrl, IPollyPolicyProvider? policyProvider = null, ILogger<coreApiClient>? logger = null)
         {
             if (httpClient == null) throw new ArgumentNullException(nameof(httpClient));
             if (string.IsNullOrEmpty(baseUrl)) throw new ArgumentNullException(nameof(baseUrl));
 
             _httpClientUtil = new HttpClientUtil(httpClient, policyProvider ?? new DefaultPollyPolicyProvider());
             _baseUrl = baseUrl.TrimEnd('/');
+            _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<coreApiClient>.Instance;
+
+            _logger.LogInformation("Initializing coreApiClient with base URL: {BaseUrl}", _baseUrl);
 
             // Initialize all operation clients
-            Teams = new Implementation.core.Teams(_httpClientUtil, _baseUrl);
-            Operations = new Implementation.core.Operations(_httpClientUtil, _baseUrl);
-            TeamMembersWithExtendedProperties = new Implementation.core.TeamMembersWithExtendedProperties(_httpClientUtil, _baseUrl);
+            Teams = new Implementation.core.Teams(_httpClientUtil, _baseUrl, _logger as ILogger<Implementation.core.Teams>);
+            Operations = new Implementation.core.Operations(_httpClientUtil, _baseUrl, _logger as ILogger<Implementation.core.Operations>);
+            TeamMembersWithExtendedProperties = new Implementation.core.TeamMembersWithExtendedProperties(_httpClientUtil, _baseUrl, _logger as ILogger<Implementation.core.TeamMembersWithExtendedProperties>);
         }
 
         /// <summary>
@@ -58,18 +64,22 @@ namespace AzureDevOpsApi.Api
         /// </summary>
         /// <param name="baseUrl">Base URL for the Azure DevOps API (e.g., "https://dev.azure.com")</param>
         /// <param name="policyProvider">Optional Polly policy provider for resilience patterns</param>
-        public coreApiClient(string baseUrl, IPollyPolicyProvider? policyProvider = null)
+        /// <param name="logger">Optional logger instance</param>
+        public coreApiClient(string baseUrl, IPollyPolicyProvider? policyProvider = null, ILogger<coreApiClient>? logger = null)
         {
             if (string.IsNullOrEmpty(baseUrl)) throw new ArgumentNullException(nameof(baseUrl));
 
             _ownedHttpClient = new HttpClient();
             _httpClientUtil = new HttpClientUtil(_ownedHttpClient, policyProvider ?? new DefaultPollyPolicyProvider());
             _baseUrl = baseUrl.TrimEnd('/');
+            _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<coreApiClient>.Instance;
+
+            _logger.LogInformation("Initializing coreApiClient with base URL: {BaseUrl}", _baseUrl);
 
             // Initialize all operation clients
-            Teams = new Implementation.core.Teams(_httpClientUtil, _baseUrl);
-            Operations = new Implementation.core.Operations(_httpClientUtil, _baseUrl);
-            TeamMembersWithExtendedProperties = new Implementation.core.TeamMembersWithExtendedProperties(_httpClientUtil, _baseUrl);
+            Teams = new Implementation.core.Teams(_httpClientUtil, _baseUrl, _logger as ILogger<Implementation.core.Teams>);
+            Operations = new Implementation.core.Operations(_httpClientUtil, _baseUrl, _logger as ILogger<Implementation.core.Operations>);
+            TeamMembersWithExtendedProperties = new Implementation.core.TeamMembersWithExtendedProperties(_httpClientUtil, _baseUrl, _logger as ILogger<Implementation.core.TeamMembersWithExtendedProperties>);
         }
 
         /// <summary>
@@ -77,15 +87,19 @@ namespace AzureDevOpsApi.Api
         /// </summary>
         /// <param name="httpClientUtil">HTTP client utility with retry logic</param>
         /// <param name="baseUrl">Base URL for the Azure DevOps API</param>
-        public coreApiClient(IHttpClientUtil httpClientUtil, string baseUrl)
+        /// <param name="logger">Optional logger instance</param>
+        public coreApiClient(IHttpClientUtil httpClientUtil, string baseUrl, ILogger<coreApiClient>? logger = null)
         {
             _httpClientUtil = httpClientUtil ?? throw new ArgumentNullException(nameof(httpClientUtil));
             _baseUrl = baseUrl?.TrimEnd('/') ?? throw new ArgumentNullException(nameof(baseUrl));
+            _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<coreApiClient>.Instance;
+
+            _logger.LogInformation("Initializing coreApiClient with base URL: {BaseUrl}", _baseUrl);
 
             // Initialize all operation clients
-            Teams = new Implementation.core.Teams(_httpClientUtil, _baseUrl);
-            Operations = new Implementation.core.Operations(_httpClientUtil, _baseUrl);
-            TeamMembersWithExtendedProperties = new Implementation.core.TeamMembersWithExtendedProperties(_httpClientUtil, _baseUrl);
+            Teams = new Implementation.core.Teams(_httpClientUtil, _baseUrl, _logger as ILogger<Implementation.core.Teams>);
+            Operations = new Implementation.core.Operations(_httpClientUtil, _baseUrl, _logger as ILogger<Implementation.core.Operations>);
+            TeamMembersWithExtendedProperties = new Implementation.core.TeamMembersWithExtendedProperties(_httpClientUtil, _baseUrl, _logger as ILogger<Implementation.core.TeamMembersWithExtendedProperties>);
         }
 
 
@@ -153,7 +167,8 @@ namespace AzureDevOpsApi.Api
             {
                 var httpClientFactory = provider.GetRequiredService<IHttpClientFactory>();
                 var httpClient = httpClientFactory.CreateClient();
-                return new coreApiClient(httpClient, baseUrl, new DefaultPollyPolicyProvider(retryOptions));
+                var logger = provider.GetService<ILogger<coreApiClient>>();
+                return new coreApiClient(httpClient, baseUrl, new DefaultPollyPolicyProvider(retryOptions), logger);
             });
 
             // Register individual operation interfaces
@@ -197,7 +212,8 @@ namespace AzureDevOpsApi.Api
             {
                 var httpClientFactory = provider.GetRequiredService<IHttpClientFactory>();
                 var httpClient = httpClientFactory.CreateClient(nameof(coreApiClient));
-                return new coreApiClient(httpClient, baseUrl, new DefaultPollyPolicyProvider(retryOptions));
+                var logger = provider.GetService<ILogger<coreApiClient>>();
+                return new coreApiClient(httpClient, baseUrl, new DefaultPollyPolicyProvider(retryOptions), logger);
             });
 
             // Register individual operation interfaces
