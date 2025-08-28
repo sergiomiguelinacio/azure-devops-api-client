@@ -16,3 +16,5 @@ AzureDevOpsClient.Examples/bin
 AzureDevOpsClient.Examples/obj
 AzureDevOpsClient.Tests/bin
 AzureDevOpsClient.Tests/obj
+Examples/ErrorHandlingDemo/bin
+Examples/ErrorHandlingDemo/obj
