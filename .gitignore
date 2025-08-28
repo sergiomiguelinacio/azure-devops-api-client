@@ -18,3 +18,5 @@ AzureDevOpsClient.Tests/bin
 AzureDevOpsClient.Tests/obj
 Examples/ErrorHandlingDemo/bin
 Examples/ErrorHandlingDemo/obj
+Examples/CorrectMemoryManagement/bin
+Examples/CorrectMemoryManagement/obj

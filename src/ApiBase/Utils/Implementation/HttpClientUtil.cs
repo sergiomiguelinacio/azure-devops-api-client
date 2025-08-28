@@ -13,8 +13,10 @@ namespace ApiBase.Utils.Implementations
     /// </summary>
     public class HttpClientUtil : IHttpClientUtil
     {
-        private readonly HttpClient _httpClient;
+        private readonly HttpClient? _httpClient;
+        private readonly IHttpClientFactory? _httpClientFactory;
         private readonly IAsyncPolicy<HttpResponseMessage> _policy;
+        private readonly string? _httpClientName;
 
         /// <summary>
         /// Initializes with HttpClient that already has Polly policies configured (via DI)
@@ -46,14 +48,44 @@ namespace ApiBase.Utils.Implementations
             _policy = policy ?? throw new ArgumentNullException(nameof(policy));
         }
 
+        /// <summary>
+        /// Initializes with IHttpClientFactory for better resource management
+        /// </summary>
+        public HttpClientUtil(IHttpClientFactory httpClientFactory, string? httpClientName = null)
+        {
+            _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
+            _httpClientName = httpClientName;
+            _policy = Policy.NoOpAsync<HttpResponseMessage>();
+        }
+
+        /// <summary>
+        /// Initializes with IHttpClientFactory and custom policy provider
+        /// </summary>
+        public HttpClientUtil(IHttpClientFactory httpClientFactory, IPollyPolicyProvider policyProvider, string? httpClientName = null)
+        {
+            _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
+            _httpClientName = httpClientName;
+            if (policyProvider == null) throw new ArgumentNullException(nameof(policyProvider));
+            _policy = policyProvider.GetPolicy();
+        }
+
+        /// <summary>
+        /// Gets HttpClient instance - either from factory or direct reference
+        /// </summary>
+        private HttpClient GetHttpClient()
+        {
+            return _httpClient ?? _httpClientFactory!.CreateClient(_httpClientName);
+        }
+
         public async Task<T?> GetAsync<T>(string endpoint, Dictionary<string, string>? headers = null, CancellationToken cancellationToken = default)
         {
-            var response = await _policy.ExecuteAsync(async () =>
+            using var response = await _policy.ExecuteAsync(async () =>
             {
                 using var request = new HttpRequestMessage(HttpMethod.Get, endpoint);
                 AddHeaders(request, headers);
 
-                return await _httpClient.SendAsync(request, cancellationToken);
+                var httpClient = GetHttpClient();
+                return await httpClient.SendAsync(request, cancellationToken);
             });
 
             return await ProcessResponseAsync<T>(response);
@@ -61,7 +93,7 @@ namespace ApiBase.Utils.Implementations
 
         public async Task<T?> PostAsync<T>(string endpoint, object? data = null, Dictionary<string, string>? headers = null, CancellationToken cancellationToken = default)
         {
-            var response = await _policy.ExecuteAsync(async () =>
+            using var response = await _policy.ExecuteAsync(async () =>
             {
                 using var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
                 AddHeaders(request, headers);
@@ -72,7 +104,8 @@ namespace ApiBase.Utils.Implementations
                     request.Content = new StringContent(json, Encoding.UTF8, "application/json");
                 }
 
-                return await _httpClient.SendAsync(request, cancellationToken);
+                var httpClient = GetHttpClient();
+                return await httpClient.SendAsync(request, cancellationToken);
             });
 
             return await ProcessResponseAsync<T>(response);
@@ -80,7 +113,7 @@ namespace ApiBase.Utils.Implementations
 
         public async Task<T?> PutAsync<T>(string endpoint, object? data = null, Dictionary<string, string>? headers = null, CancellationToken cancellationToken = default)
         {
-            var response = await _policy.ExecuteAsync(async () =>
+            using var response = await _policy.ExecuteAsync(async () =>
             {
                 using var request = new HttpRequestMessage(HttpMethod.Put, endpoint);
                 AddHeaders(request, headers);
@@ -91,7 +124,8 @@ namespace ApiBase.Utils.Implementations
                     request.Content = new StringContent(json, Encoding.UTF8, "application/json");
                 }
 
-                return await _httpClient.SendAsync(request, cancellationToken);
+                var httpClient = GetHttpClient();
+                return await httpClient.SendAsync(request, cancellationToken);
             });
 
             return await ProcessResponseAsync<T>(response);
@@ -99,12 +133,13 @@ namespace ApiBase.Utils.Implementations
 
         public async Task<T?> DeleteAsync<T>(string endpoint, Dictionary<string, string>? headers = null, CancellationToken cancellationToken = default)
         {
-            var response = await _policy.ExecuteAsync(async () =>
+            using var response = await _policy.ExecuteAsync(async () =>
             {
                 using var request = new HttpRequestMessage(HttpMethod.Delete, endpoint);
                 AddHeaders(request, headers);
 
-                return await _httpClient.SendAsync(request, cancellationToken);
+                var httpClient = GetHttpClient();
+                return await httpClient.SendAsync(request, cancellationToken);
             });
 
             return await ProcessResponseAsync<T>(response);
@@ -112,7 +147,7 @@ namespace ApiBase.Utils.Implementations
 
         public async Task<T?> PatchAsync<T>(string endpoint, object? data = null, Dictionary<string, string>? headers = null, CancellationToken cancellationToken = default)
         {
-            var response = await _policy.ExecuteAsync(async () =>
+            using var response = await _policy.ExecuteAsync(async () =>
             {
                 using var request = new HttpRequestMessage(HttpMethod.Patch, endpoint);
                 AddHeaders(request, headers);
@@ -123,7 +158,8 @@ namespace ApiBase.Utils.Implementations
                     request.Content = new StringContent(json, Encoding.UTF8, "application/json");
                 }
 
-                return await _httpClient.SendAsync(request, cancellationToken);
+                var httpClient = GetHttpClient();
+                return await httpClient.SendAsync(request, cancellationToken);
             });
 
             return await ProcessResponseAsync<T>(response);
@@ -132,18 +168,22 @@ namespace ApiBase.Utils.Implementations
         // Legacy methods for backward compatibility
         public async Task<T?> ManagedResult<T>(HttpResponseMessage response)
         {
-            return await ProcessResponseAsync<T>(response);
+            using (response)
+            {
+                return await ProcessResponseAsync<T>(response);
+            }
         }
 
         public async Task<T?> HttpPost<T>(string endpoint, HttpContent content, Dictionary<string, string> headers)
         {
-            var response = await _policy.ExecuteAsync(async () =>
+            using var response = await _policy.ExecuteAsync(async () =>
             {
                 using var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
                 request.Content = content;
                 AddHeaders(request, headers);
 
-                return await _httpClient.SendAsync(request);
+                var httpClient = GetHttpClient();
+                return await httpClient.SendAsync(request);
             });
 
             return await ProcessResponseAsync<T>(response);
