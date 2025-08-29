@@ -4,22 +4,7 @@ This directory contains practical examples demonstrating how to use the Azure De
 
 ## 🎯 Available Examples
 
-### 1. **CorrectMemoryManagement** 
-**Purpose**: Demonstrates proper memory management and resource disposal patterns
-
-**Key Concepts**:
-- ✅ Proper `HttpClient` disposal with `using` statements
-- ✅ `IHttpClientFactory` usage for optimal resource management
-- ✅ Dependency injection setup
-- ✅ Best practices for HTTP resource management
-
-**Run Example**:
-```bash
-cd CorrectMemoryManagement
-dotnet run
-```
-
-### 2. **CommonScenarios**
+### 1. **CommonScenarios**
 **Purpose**: Real-world usage scenarios and patterns
 
 **Key Concepts**:

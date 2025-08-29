@@ -82,6 +82,21 @@
     <NuGetAuditLevel>low</NuGetAuditLevel>
   </PropertyGroup>
 
+  <ItemGroup Label="Code Analysis and Quality - Latest Stable">
+    <!-- Microsoft Code Analysis -->
+    <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.4" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="8.0.0" />
+
+    <!-- SonarAnalyzer for C# -->
+    <PackageVersion Include="SonarAnalyzer.CSharp" Version="9.32.0.97167" />
+
+    <!-- Security Analysis -->
+    <PackageVersion Include="SecurityCodeScan.VS2019" Version="5.6.7" />
+
+    <!-- StyleCop Analyzers -->
+    <PackageVersion Include="StyleCop.Analyzers" Version="1.1.118" />
+  </ItemGroup>
+
   <!-- Global Package Settings -->
   <PropertyGroup>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>

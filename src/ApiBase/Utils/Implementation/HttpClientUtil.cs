@@ -74,7 +74,7 @@ namespace ApiBase.Utils.Implementations
         /// </summary>
         private HttpClient GetHttpClient()
         {
-            return _httpClient ?? _httpClientFactory!.CreateClient(_httpClientName);
+            return _httpClient ?? _httpClientFactory!.CreateClient(_httpClientName ?? string.Empty);
         }
 
         public async Task<T?> GetAsync<T>(string endpoint, Dictionary<string, string>? headers = null, CancellationToken cancellationToken = default)

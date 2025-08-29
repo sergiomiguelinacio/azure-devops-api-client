@@ -31,7 +31,7 @@ namespace ApiBase.Extensions
             // Register HttpClient with default configuration
             services.AddHttpClient<TInterface, TClient>(client =>
             {
-                client.BaseAddress = new Uri(baseUrl);
+                client.BaseAddress = new Uri(baseUrl ?? DEFAULT_AZURE_DEVOPS_BASE_URL);
                 client.DefaultRequestHeaders.Add("User-Agent", "AzureDevOpsApiClient/1.0");
                 configureHttpClient?.Invoke(client);
             })
